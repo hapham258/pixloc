@@ -9,7 +9,7 @@ import logging
 from omegaconf import OmegaConf
 import omegaconf
 import torch
-from torch._six import string_classes
+string_classes = (str,)
 from torch.utils.data import DataLoader, Sampler, get_worker_info
 from torch.utils.data._utils.collate import (default_collate_err_msg_format,
                                              np_str_obj_array_pattern)

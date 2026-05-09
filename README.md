@@ -1,3 +1,32 @@
+Setup:
+```
+conda create -n pixloc_all python=3.11
+conda activate pixloc_all
+```
+Prepare data:
+```
+mkdir -p datasets/Aachen
+export AACHEN_DATA=$HOME/Documents/VisLoc_Datasets/aachen_daynight_v1_1
+ln -s $AACHEN_DATA/3D-models datasets/Aachen/3D-models
+mkdir -p datasets/Aachen/images
+ln -s $AACHEN_DATA/images_upright datasets/Aachen/images/images_upright
+ln -s $AACHEN_DATA/queries datasets/Aachen/queries
+
+mkdir -p outputs/hloc/Aachen/sfm_superpoint+superglue
+cd outputs/hloc/Aachen/sfm_superpoint+superglue
+wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/sfm_superpoint+superglue/cameras.bin
+wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/sfm_superpoint+superglue/images.bin
+wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/sfm_superpoint+superglue/points3D.bin
+cd ..
+wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/Aachen_v1_1_hloc_superpoint+superglue-rmax1600_netvlad50.txt
+wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/Aachen_v1_1_hloc_superpoint+superglue-rmax1600_netvlad50.txt_logs.pkl
+wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/aachen_tf-netvlad.h5
+wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/pairs-query-netvlad50.txt
+cd ../../../
+ln -s datasets/Aachen/queries/day_time_queries_with_intrinsics.txt outputs/hloc/Aachen/day_time_queries_with_intrinsics.txt
+ln -s datasets/Aachen/queries/night_time_queries_with_intrinsics.txt outputs/hloc/Aachen/night_time_queries_with_intrinsics.txt
+```
+
 <p align="center">
   <a href="https://psarlin.com/pixloc"><img src="assets/logo.svg" width="60%"/></a>
 </p>
