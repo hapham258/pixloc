@@ -32,7 +32,7 @@ default_confs = {
             'point_selection': 'all',
             'normalize_descriptors': True,
             'average_observations': False,
-            'do_pose_approximation': True,
+            'do_pose_approximation': False,
         },
     },
     'from_poses': {
