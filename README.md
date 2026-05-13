@@ -2,15 +2,15 @@ Setup:
 ```
 conda create -n pixloc_all python=3.11
 conda activate pixloc_all
+pip install -e .
+pip install -e .[extra]
 ```
 Prepare data:
 ```
 mkdir -p datasets/Aachen
 export AACHEN_DATA=$HOME/Documents/VisLoc_Datasets/aachen_daynight_v1_1
-ln -s $AACHEN_DATA/3D-models datasets/Aachen/3D-models
 mkdir -p datasets/Aachen/images
 ln -s $AACHEN_DATA/images_upright datasets/Aachen/images/images_upright
-ln -s $AACHEN_DATA/queries datasets/Aachen/queries
 
 mkdir -p outputs/hloc/Aachen/sfm_superpoint+superglue
 cd outputs/hloc/Aachen/sfm_superpoint+superglue
@@ -23,8 +23,22 @@ wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/Aachen_v
 wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/aachen_tf-netvlad.h5
 wget https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/Aachen-Day-Night-v1.1/pairs-query-netvlad50.txt
 cd ../../../
-ln -s datasets/Aachen/queries/day_time_queries_with_intrinsics.txt outputs/hloc/Aachen/day_time_queries_with_intrinsics.txt
-ln -s datasets/Aachen/queries/night_time_queries_with_intrinsics.txt outputs/hloc/Aachen/night_time_queries_with_intrinsics.txt
+ln -s $AACHEN_DATA/queries/day_time_queries_with_intrinsics.txt outputs/hloc/Aachen/day_time_queries_with_intrinsics.txt
+ln -s $AACHEN_DATA/queries/night_time_queries_with_intrinsics.txt outputs/hloc/Aachen/night_time_queries_with_intrinsics.txt
+```
+Then run `notebooks/demo.ipynb`. For evaluation, run:
+```
+python -m pixloc.run_Aachen
+```
+To run on custom (ZED X Mini) sequences, first run HLoc tool to generate the SFM model at `outputs/hloc/zedx_mini/sfm_model`, together with the corresponding database's global features at `outputs/hloc/zedx_mini/db_global_feats.h5`. Then run this command to generate the data for the query sequence:
+```
+python preprocess/gen_query_data.py \
+    --query_dir /media/hapq/LDATA/dense_mapping/zedx_mini/dataset_2026-04-21_08-24-23/dso/rgb \
+    --fx 749.8759765625 --fy 749.8759765625 --cx 988.2882080078125 --cy 572.5521240234375 --w 1920 --h 1200
+```
+Then run `notebooks/demo_zedx_mini.ipynb`. For evaluation, run:
+```
+python -m pixloc.run_zedx_mini
 ```
 
 <p align="center">
