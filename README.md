@@ -30,7 +30,7 @@ Then run `notebooks/demo.ipynb`. For evaluation, run:
 ```
 python -m pixloc.run_Aachen
 ```
-To run on custom (ZED X Mini) sequences, first run HLoc tool to generate the SFM model at `outputs/hloc/zedx_mini/sfm_model`, together with the corresponding database's global features at `outputs/hloc/zedx_mini/db_global_feats.h5`. Then run this command to generate the data for the query sequence:
+To run on custom (ZED X Mini) sequences, first run HLoc tool to generate the SFM model at `outputs/hloc/zedx_mini/sfm_model`, together with the corresponding database's global features at `outputs/hloc/zedx_mini/db_global_feats.h5` and local features at `outputs/hloc/zedx_mini/db_local_feats.h5`. Then run this command to generate the data for the query sequence:
 ```
 python preprocess/gen_query_data.py \
     --query_dir /media/hapq/LDATA/dense_mapping/zedx_mini/dataset_2026-04-21_08-24-23/dso/rgb \
@@ -38,7 +38,8 @@ python preprocess/gen_query_data.py \
 ```
 Then run `notebooks/demo_zedx_mini.ipynb`. For evaluation, run:
 ```
-python -m pixloc.run_zedx_mini
+python -m pixloc.run_zedx_mini                # Estimate pose from retrieval pose
+python -m pixloc.run_zedx_mini --from_poses   # Estimate pose from HLoc pose
 ```
 
 <p align="center">
