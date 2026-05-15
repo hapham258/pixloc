@@ -22,15 +22,34 @@ if __name__ == "__main__":
         default=1,
         help="Keep every N poses",
     )
+    parser.add_argument(
+        "--log_type",
+        type=str,
+        choices=["hloc", "pixloc"],
+        default=["hloc"],
+        help=(
+            "Type of localization log"
+        ),
+    )
     args = parser.parse_args()
 
-    # Load HLoc logs
+    # Load logs
     print("Loading logs...")
-    with open(args.log_file, "rb") as f:
-        logs = pickle.load(f)["loc"]
+    if args.log_type == "hloc":
+        with open(args.log_file, "rb") as f:
+            logs = pickle.load(f)["loc"]
+    elif args.log_type == "pixloc":
+        with open(args.log_file, "rb") as f:
+            logs = pickle.load(f)["localization"]
+    else:
+        raise ValueError(f"Unsupported log_type: {args.log_type}")
 
     # Load pose file
     poses = []
+    num_total = 0
+    num_missing = 0
+    num_failed = 0
+    num_valid = 0
     with open(args.pose_file, "r") as f:
         lines = f.readlines()
     print("Processing poses...")
@@ -38,16 +57,30 @@ if __name__ == "__main__":
         line = line.strip()
         if not line or line.startswith("#"):
             continue
+        num_total += 1
         parts = line.split()
         image_name = parts[0]
         if image_name not in logs:
+            num_missing += 1
             continue
-        pnp_ret = logs[image_name]["PnP_ret"]
 
-        # Discard too few iniliers
-        num_inliers = pnp_ret.get("num_inliers", 0)
-        if num_inliers < args.min_inliers:
-            continue
+        # Process HLoc-style logs
+        if args.log_type == "hloc":
+            entry = logs[image_name]
+            if "PnP_ret" in entry:
+                pnp_ret = entry["PnP_ret"]
+                num_inliers = pnp_ret.get("num_inliers", 0)
+                if num_inliers < args.min_inliers:
+                    num_failed += 1
+                    continue
+
+        # Process PixLoc-style logs
+        if args.log_type == "pixloc":
+            entry = logs[image_name]
+            success = entry.get("success", False)
+            if not success:
+                num_failed += 1
+                continue
 
         # Parse pose
         qw = float(parts[1])
@@ -65,6 +98,11 @@ if __name__ == "__main__":
         R = Rotation.from_quat([qx, qy, qz, qw]).as_matrix()
         pos = -R.T @ t
         poses.append(pos)
+        num_valid += 1
+    print(f"Total poses: {num_total}")
+    print(f"Missing logs: {num_missing}")
+    print(f"Failed poses: {num_failed}")
+    print(f"Valid poses: {num_valid}")
     if len(poses) == 0:
         print("No valid poses remaining after filtering.")
         exit(0)

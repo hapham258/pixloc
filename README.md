@@ -36,10 +36,13 @@ python preprocess/gen_query_data.py \
     --query_dir /media/hapq/LDATA/dense_mapping/zedx_mini/dataset_2026-04-21_08-24-23/dso/rgb \
     --fx 749.8759765625 --fy 749.8759765625 --cx 988.2882080078125 --cy 572.5521240234375 --w 1920 --h 1200
 ```
-Then run `notebooks/demo_zedx_mini.ipynb`. For evaluation, run:
+Then run `notebooks/demo_zedx_mini.ipynb`.
+For evaluation and refinement, run:
 ```
-python -m pixloc.run_zedx_mini                # Estimate pose from retrieval pose
-python -m pixloc.run_zedx_mini --from_poses   # Estimate pose from HLoc pose
+python postprocess/extract_compact_pickle.py outputs/hloc/zedx_mini/query_loc.txt_logs.pkl 
+python postprocess/plot_valid_poses.py outputs/hloc/zedx_mini/query_loc.txt outputs/hloc/zedx_mini/query_loc.txt_logs_compact.pkl --log_type=hloc    # Visualize poses before refinement
+python -m pixloc.run_zedx_mini --from_poses --hloc_logs=outputs/hloc/zedx_mini/query_loc.txt_logs.pkl
+python postprocess/plot_valid_poses.py outputs/results/pixloc_zedx_mini.txt outputs/results/pixloc_zedx_mini.txt_logs.pkl --log_type=pixloc          # Visualize poses after refinement
 ```
 
 <p align="center">
