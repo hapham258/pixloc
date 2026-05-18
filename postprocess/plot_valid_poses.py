@@ -27,9 +27,7 @@ if __name__ == "__main__":
         type=str,
         choices=["hloc", "pixloc"],
         default=["hloc"],
-        help=(
-            "Type of localization log"
-        ),
+        help=("Type of localization log"),
     )
     args = parser.parse_args()
 
@@ -46,6 +44,7 @@ if __name__ == "__main__":
 
     # Load pose file
     poses = []
+    validity_log = []
     num_total = 0
     num_missing = 0
     num_failed = 0
@@ -62,6 +61,7 @@ if __name__ == "__main__":
         image_name = parts[0]
         if image_name not in logs:
             num_missing += 1
+            validity_log.append((image_name, False))
             continue
 
         # Process HLoc-style logs
@@ -72,6 +72,7 @@ if __name__ == "__main__":
                 num_inliers = pnp_ret.get("num_inliers", 0)
                 if num_inliers < args.min_inliers:
                     num_failed += 1
+                    validity_log.append((image_name, False))
                     continue
 
         # Process PixLoc-style logs
@@ -80,6 +81,7 @@ if __name__ == "__main__":
             success = entry.get("success", False)
             if not success:
                 num_failed += 1
+                validity_log.append((image_name, False))
                 continue
 
         # Parse pose
@@ -99,6 +101,7 @@ if __name__ == "__main__":
         pos = -R.T @ t
         poses.append(pos)
         num_valid += 1
+        validity_log.append((image_name, True))
     print(f"Total poses: {num_total}")
     print(f"Missing logs: {num_missing}")
     print(f"Failed poses: {num_failed}")
@@ -111,6 +114,14 @@ if __name__ == "__main__":
     # Decimate trajectory
     positions = positions[:: args.stride]
     print(f"Valid poses after filtering: {len(positions)}")
+
+    # Save validity txt log
+    log_txt_file = args.log_file + ".txt"
+    with open(log_txt_file, "w") as f:
+        f.write("#image_file valid\n")
+        for image_name, is_valid in validity_log:
+            f.write(f"{image_name} {is_valid}\n")
+    print(f"Saved text log to: {log_txt_file}")
 
     # Open3D visualization
     pcd = o3d.geometry.PointCloud()
