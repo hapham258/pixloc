@@ -30,11 +30,16 @@ Then run `notebooks/demo.ipynb`. For evaluation, run:
 ```
 python -m pixloc.run_Aachen
 ```
-To run on custom (ZED X Mini) sequences, first run HLoc tool to generate the SFM model at `outputs/hloc/zedx_mini/sfm_model`, together with the corresponding database's global features at `outputs/hloc/zedx_mini/db_global_feats.h5` and local features at `outputs/hloc/zedx_mini/db_local_feats.h5`. Then run this command to generate the data for the query sequence:
+To run on custom (ZED X Mini) sequences, first make symlinks to the database images and query images:
 ```
-python preprocess/gen_query_data.py \
-    --query_dir /media/hapq/LDATA/dense_mapping/zedx_mini/dataset_2026-04-21_08-24-23/dso/rgb \
-    --fx 749.8759765625 --fy 749.8759765625 --cx 988.2882080078125 --cy 572.5521240234375 --w 1920 --h 1200
+export DB_IMGS_DIR=$HOME/visual_inertial_bundle_adjustment/viba_input/keyframes
+export QUERY_IMGS_DIR=/media/hapq/LDATA/dense_mapping/zedx_mini/dataset_2026-05-17_08-43-18/dso/rgb
+ln -s $DB_IMGS_DIR datasets/zedx_mini/images/db
+ln -s $QUERY_IMGS_DIR datasets/zedx_mini/images/query
+```
+Then run HLoc tool to generate the SFM model at `outputs/hloc/zedx_mini/sfm_model`, together with the corresponding database's global features at `outputs/hloc/zedx_mini/db_global_feats.h5` and local features at `outputs/hloc/zedx_mini/db_local_feats.h5`. Finally run this command to generate the data for the query sequence:
+```
+python preprocess/gen_query_data.py --query_dir $QUERY_IMGS_DIR --fx 749.8759765625 --fy 749.8759765625 --cx 988.2882080078125 --cy 572.5521240234375 --w 1920 --h 1200
 ```
 Then run `notebooks/demo_zedx_mini.ipynb`.
 For evaluation and refinement, run:
