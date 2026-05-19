@@ -9,6 +9,29 @@ from hloc import (
     match_features,
     localize_sfm,
 )
+from hloc.utils.io import write_poses as original_write_poses
+from hloc.utils import io as hloc_io
+
+
+def safe_write_poses(poses, path, prepend_camera_name=False):
+    filtered = {}
+    bad = 0
+    for name, t in poses.items():
+        if hasattr(t, "rotation") and hasattr(t, "translation") and not callable(t):
+            filtered[name] = t
+        else:
+            bad += 1
+            print(f"[WARNING] Skipping bad pose entry: " f"{name} ({type(t)})")
+    print(f"write_poses: kept {len(filtered)} poses, " f"removed {bad} bad entries")
+    return original_write_poses(
+        filtered,
+        path,
+        prepend_camera_name=prepend_camera_name,
+    )
+
+
+hloc_io.write_poses = safe_write_poses
+localize_sfm.write_poses = safe_write_poses
 
 if __name__ == "__main__":
     # Parse arguments
@@ -110,13 +133,27 @@ if __name__ == "__main__":
         logs["loc"].values(),
         desc="Patching hloc logs",
     ):
-        pnp = loc["PnP_ret"]
+        #
+        pnp = loc.get("PnP_ret", None)
+        if pnp is None:
+            continue
+        if not isinstance(pnp, dict):
+            continue
+
+        #
         if "success" not in pnp:
-            pnp["success"] = pnp["num_inliers"] > 0
+            pnp["success"] = pnp.get("num_inliers", 0) > 0
         if "inliers" not in pnp and "inlier_mask" in pnp:
             pnp["inliers"] = pnp["inlier_mask"]
         if "qvec" not in pnp or "tvec" not in pnp:
-            T = pnp["cam_from_world"]
+            T = pnp.get(
+                "cam_from_world",
+                None,
+            )
+            if callable(T):
+                continue
+            if T is None:
+                continue
             qxyzw = np.asarray(T.rotation.quat)
             pnp["qvec"] = np.array(
                 [
@@ -127,5 +164,42 @@ if __name__ == "__main__":
                 ]
             )
             pnp["tvec"] = np.asarray(T.translation)
+
+    # Get bad keys
+    bad_keys = []
+    for k, loc in logs["loc"].items():
+        pnp = loc.get("PnP_ret", None)
+        if pnp is None:
+            bad_keys.append(k)
+            continue
+        if not isinstance(pnp, dict):
+            bad_keys.append(k)
+            continue
+        T = pnp.get("cam_from_world", None)
+        if callable(T):
+            bad_keys.append(k)
+
+    # Remove bad keys from logs
+    for k in bad_keys:
+        del logs["loc"][k]
+    print(f"Removed {len(bad_keys)} invalid log entries")
+
+    # Also filter queries_with_intrinsics.txt
+    with open(queries_with_intrinsics, "r") as f:
+        lines = f.readlines()
+    bad_set = set(bad_keys)
+    filtered_lines = []
+    for line in lines:
+        name = line.split()[0]
+        if name not in bad_set:
+            filtered_lines.append(line)
+    with open(queries_with_intrinsics, "w") as f:
+        f.writelines(filtered_lines)
+    print(
+        f"Filtered queries_with_intrinsics.txt: "
+        f"{len(lines)} -> {len(filtered_lines)}"
+    )
+
+    # Save new logs
     with open(hloc_logs_path, "wb") as f:
         pickle.dump(logs, f, protocol=pickle.HIGHEST_PROTOCOL)

@@ -32,22 +32,25 @@ python -m pixloc.run_Aachen
 ```
 To run on custom (ZED X Mini) sequences, first make symlinks to the database images and query images:
 ```
-export DB_IMGS_DIR=$HOME/visual_inertial_bundle_adjustment/viba_input/keyframes
-export QUERY_IMGS_DIR=/media/hapq/LDATA/dense_mapping/zedx_mini/dataset_2026-05-17_08-43-18/dso/rgb
-ln -s $DB_IMGS_DIR datasets/zedx_mini/images/db
-ln -s $QUERY_IMGS_DIR datasets/zedx_mini/images/query
+ln -s $HOME/visual_inertial_bundle_adjustment/viba_input/keyframes datasets/zedx_mini/images/db
+ln -s /media/hapq/LDATA/dense_mapping/zedx_mini/dataset_2026-05-17_08-43-18/dso/rgb datasets/zedx_mini/images/query
 ```
 Then run HLoc tool to generate the SFM model at `outputs/hloc/zedx_mini/sfm_model`, together with the corresponding database's global features at `outputs/hloc/zedx_mini/db_global_feats.h5` and local features at `outputs/hloc/zedx_mini/db_local_feats.h5`. Finally run this command to generate the data for the query sequence:
 ```
-python preprocess/gen_query_data.py --query_dir $QUERY_IMGS_DIR --fx 749.8759765625 --fy 749.8759765625 --cx 988.2882080078125 --cy 572.5521240234375 --w 1920 --h 1200
+python preprocess/gen_query_data.py --query_dir datasets/zedx_mini/images/query --fx 749.8759765625 --fy 749.8759765625 --cx 988.2882080078125 --cy 572.5521240234375 --w 1920 --h 1200
 ```
 Then run `notebooks/demo_zedx_mini.ipynb`.
+
 For evaluation and refinement, run:
 ```
 python postprocess/extract_compact_pickle.py outputs/hloc/zedx_mini/query_loc.txt_logs.pkl 
 python postprocess/plot_valid_poses.py outputs/hloc/zedx_mini/query_loc.txt outputs/hloc/zedx_mini/query_loc.txt_logs_compact.pkl --log_type=hloc    # Visualize poses before refinement
 python -m pixloc.run_zedx_mini --from_poses --hloc_logs=outputs/hloc/zedx_mini/query_loc.txt_logs.pkl
 python postprocess/plot_valid_poses.py outputs/results/pixloc_zedx_mini.txt outputs/results/pixloc_zedx_mini.txt_logs.pkl --log_type=pixloc          # Visualize poses after refinement
+```
+Then use this command to convert to DSO-compatible pose file:
+```
+python postprocess/convert_to_dso_poses.py outputs/results/pixloc_zedx_mini.txt outputs/results/pixloc_zedx_mini.txt_logs.pkl.txt outputs/results/pixloc_zedx_mini_fmt.txt
 ```
 
 <p align="center">

@@ -5,6 +5,18 @@ import open3d as o3d
 from scipy.spatial.transform import Rotation
 from tqdm import tqdm
 
+
+def summarize_stats(name, values):
+    if not values:
+        return
+    arr = np.asarray(values)
+    print(f"{name}:")
+    print(f"  mean: {arr.mean():.4f}")
+    print(f"  median: {np.median(arr):.4f}")
+    print(f"  min: {arr.min():.4f}")
+    print(f"  max: {arr.max():.4f}")
+
+
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
@@ -14,7 +26,19 @@ if __name__ == "__main__":
         "--min_inliers",
         type=int,
         default=30,
-        help="Minimum PnP inliers",
+        help="Minimum PnP inliers (HLoc log)",
+    )
+    parser.add_argument(
+        "--max_tran_err",
+        type=float,
+        default=0.5,
+        help="Maximum translation error for valid pose (PixLoc log)",
+    )
+    parser.add_argument(
+        "--max_rot_err",
+        type=float,
+        default=0.785398163,
+        help="Maximum rotation error for valid pose (PixLoc log)",
     )
     parser.add_argument(
         "--stride",
@@ -52,6 +76,11 @@ if __name__ == "__main__":
     with open(args.pose_file, "r") as f:
         lines = f.readlines()
     print("Processing poses...")
+    stats = {
+        "num_inliers": [],
+        "diff_t": [],
+        "diff_R": [],
+    }
     for line in tqdm(lines):
         line = line.strip()
         if not line or line.startswith("#"):
@@ -70,6 +99,7 @@ if __name__ == "__main__":
             if "PnP_ret" in entry:
                 pnp_ret = entry["PnP_ret"]
                 num_inliers = pnp_ret.get("num_inliers", 0)
+                stats["num_inliers"].append(num_inliers)
                 if num_inliers < args.min_inliers:
                     num_failed += 1
                     validity_log.append((image_name, False))
@@ -80,6 +110,14 @@ if __name__ == "__main__":
             entry = logs[image_name]
             success = entry.get("success", False)
             if not success:
+                num_failed += 1
+                validity_log.append((image_name, False))
+                continue
+            diff_t = entry.get("diff_t", 0)
+            diff_R = entry.get("diff_R", 0)
+            stats["diff_t"].append(diff_t)
+            stats["diff_R"].append(diff_R)
+            if diff_t > args.max_tran_err or diff_R > args.max_rot_err:
                 num_failed += 1
                 validity_log.append((image_name, False))
                 continue
@@ -106,6 +144,9 @@ if __name__ == "__main__":
     print(f"Missing logs: {num_missing}")
     print(f"Failed poses: {num_failed}")
     print(f"Valid poses: {num_valid}")
+    summarize_stats("HLoc num_inliers", stats["num_inliers"])
+    summarize_stats("PixLoc diff_t", stats["diff_t"])
+    summarize_stats("PixLoc diff_R", stats["diff_R"])
     if len(poses) == 0:
         print("No valid poses remaining after filtering.")
         exit(0)
