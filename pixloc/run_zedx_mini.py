@@ -5,16 +5,21 @@ from .localization import RetrievalLocalizer, PoseLocalizer
 from .utils.data import Paths, create_argparser, parse_paths, parse_conf
 from .utils.io import write_pose_results
 
+# running_set='netvlad_aliked_lightglue'
+running_set='megaloc_superpoint_superglue'
+query_set='query1'
 
 default_paths = Paths(
-    query_images='images/query/',
-    reference_images='images/db/',
-    reference_sfm='sfm_model/',
-    query_list='queries_with_intrinsics.txt',
-    global_descriptors='query_global_feats.h5',
-    retrieval_pairs='query_db_pairs.txt',
-    results='pixloc_zedx_mini.txt',
+    query_images = 'images/' + query_set + '/',
+    reference_images = 'images/db/',
+    reference_sfm = running_set + '/sfm_model/',
+    query_list = running_set + '/' + query_set + '/queries_with_intrinsics.txt',
+    global_descriptors = running_set + '/' + query_set + '/query_global_feats.h5',
+    retrieval_pairs = running_set + '/' + query_set + '/query_db_pairs.txt',
+    results = running_set + '/' + query_set + '/pixloc_zedx_mini.txt',
 )
+
+pose_priors = running_set + '/' + query_set + '/query_loc.txt_logs.pkl'
 
 experiment = 'pixloc_megadepth'
 
