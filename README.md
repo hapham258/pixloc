@@ -43,10 +43,12 @@ Then run `notebooks/demo_zedx_mini.ipynb`.
 
 For evaluation and refinement, run:
 ```
-python postprocess/extract_compact_pickle.py outputs/hloc/zedx_mini/query_loc.txt_logs.pkl 
-python postprocess/plot_valid_poses.py outputs/hloc/zedx_mini/query_loc.txt outputs/hloc/zedx_mini/query_loc.txt_logs_compact.pkl --log_type=hloc    # Visualize poses before refinement
-python -m pixloc.run_zedx_mini --from_poses --hloc_logs=outputs/hloc/zedx_mini/query_loc.txt_logs.pkl
-python postprocess/plot_valid_poses.py outputs/results/pixloc_zedx_mini.txt outputs/results/pixloc_zedx_mini.txt_logs.pkl --log_type=pixloc          # Visualize poses after refinement
+export OUT_HLOC_DIR=outputs/hloc/zedx_mini
+export OUT_PIXLOC_DIR=outputs/results
+python postprocess/extract_compact_pickle.py $OUT_HLOC_DIR/query_loc.txt_logs.pkl 
+python postprocess/plot_valid_poses.py $OUT_HLOC_DIR/query_loc.txt $OUT_HLOC_DIR/query_loc.txt_logs_compact.pkl --log_type=hloc                # Visualize poses before refinement
+python -m pixloc.run_zedx_mini --from_poses --hloc_logs=$OUT_HLOC_DIR/query_loc.txt_logs.pkl
+python postprocess/plot_valid_poses.py $OUT_PIXLOC_DIR/pixloc_zedx_mini.txt $OUT_PIXLOC_DIR/pixloc_zedx_mini.txt_logs.pkl --log_type=pixloc    # Visualize poses after refinement
 ```
 Then use this command to convert to DSO-compatible pose file:
 ```
