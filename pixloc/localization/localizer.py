@@ -1,6 +1,6 @@
 import logging
 import pickle
-from typing import Optional, Dict, Tuple, Union
+from typing import Optional, Dict, Tuple, Union, List
 from omegaconf import DictConfig, OmegaConf as oc
 from tqdm import tqdm
 import torch
@@ -21,9 +21,25 @@ logger = logging.getLogger(__name__)
 torch.set_grad_enabled(False)
 
 
+def load_valid_images(log_txt_file: str) -> List[str]:
+    valid_images = []
+    with open(log_txt_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+
+            image_name, is_valid = parts[0], parts[1]
+            if is_valid == "True":
+                valid_images.append(image_name)
+    return valid_images
+
+
 class Localizer:
     def __init__(self, paths: Paths, conf: Union[DictConfig, Dict],
-                 device: Optional[torch.device] = None):
+                 device: Optional[torch.device] = None,
+                 discard_names: List[str] = []):
         if device is None:
             if torch.cuda.is_available():
                 device = torch.device('cuda:0')
@@ -31,7 +47,12 @@ class Localizer:
                 device = torch.device('cpu')
 
         self.model3d = Model3D(paths.reference_sfm)
-        cameras = parse_image_lists(paths.query_list, with_intrinsics=True)
+
+        cameras = parse_image_lists(
+            paths.query_list,
+            with_intrinsics=True,
+            discard_names=discard_names,
+        )
         self.queries = {n: c for n, c in cameras}
 
         # Loading feature extractor and optimizer from experiment or scratch
@@ -101,8 +122,9 @@ class Localizer:
 
 class RetrievalLocalizer(Localizer):
     def __init__(self, paths: Paths, conf: Union[DictConfig, Dict],
-                 device: Optional[torch.device] = None):
-        super().__init__(paths, conf, device)
+                 device: Optional[torch.device] = None,
+                 discard_names: List[str] = []):
+        super().__init__(paths, conf, device, discard_names)
 
         if paths.global_descriptors is not None:
             global_descriptors = load_hdf5(paths.global_descriptors)
@@ -134,8 +156,9 @@ class RetrievalLocalizer(Localizer):
 
 class PoseLocalizer(Localizer):
     def __init__(self, paths: Paths, conf: Union[DictConfig, Dict],
-                 device: Optional[torch.device] = None):
-        super().__init__(paths, conf, device)
+                 device: Optional[torch.device] = None,
+                 discard_names: List[str] = []):
+        super().__init__(paths, conf, device, discard_names)
 
         self.refiner = PoseRefiner(
             device, self.optimizer, self.model3d, self.extractor, paths,

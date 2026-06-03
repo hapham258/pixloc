@@ -81,6 +81,7 @@ def create_argparser(dataset: str) -> argparse.ArgumentParser:
                         default=settings.EVAL_PATH)
 
     parser.add_argument('--from_poses', action='store_true')
+    parser.add_argument('--rerun', action='store_true')
     parser.add_argument('--inlier_ranking', action='store_true')
     parser.add_argument('--skip', type=int)
     parser.add_argument('--verbose', action='store_true')

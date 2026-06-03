@@ -11,14 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 def parse_image_list(path: Path, with_intrinsics: bool = False,
-                     with_poses: bool = False) -> List:
+                     with_poses: bool = False,
+                     discard_names: List[str] = []) -> List:
     images = []
+    discard_names = set(discard_names)
     with open(path, 'r') as f:
         for line in f:
             line = line.strip('\n')
             if len(line) == 0 or line[0] == '#':
                 continue
             name, *data = line.split()
+            if name in discard_names:
+                continue
+
             if with_intrinsics:
                 camera_model, width, height, *params = data
                 params = np.array(params, float)
