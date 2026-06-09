@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # Extract global descriptors for query images
     query_global_feats_path = output_dir / "query_global_feats.h5"
     query_names = sorted(query_dir.glob("*.png"))
-    retrieval_conf = extract_features.confs["netvlad"]
+    retrieval_conf = extract_features.confs["megaloc"]
     extract_features.main(
         retrieval_conf,
         image_dir=query_dir,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # Extract local descriptors for query images
     query_local_feats_path = output_dir / "query_local_feats.h5"
-    local_feature_conf = extract_features.confs["aliked-n16"]
+    local_feature_conf = extract_features.confs["superpoint_max"]
     extract_features.main(
         local_feature_conf,
         image_dir=query_dir,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     # Match query and database features
     query_db_matches_path = output_dir / "query_db_matches.h5"
-    query_db_matcher_conf = match_features.confs["aliked+lightglue"]
+    query_db_matcher_conf = match_features.confs["superpoint+lightglue"]
     match_features.main(
         query_db_matcher_conf,
         pairs=query_db_pairs,
