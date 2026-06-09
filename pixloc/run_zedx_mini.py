@@ -8,6 +8,7 @@ from .utils.io import write_pose_results
 # running_set='netvlad_aliked_lightglue'
 # running_set='netvlad_superpoint_lightglue'
 running_set='megaloc_superpoint_lightglue'
+# running_set='megaloc_loftr'
 query_set='query1'
 
 default_paths = Paths(

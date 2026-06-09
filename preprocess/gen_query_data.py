@@ -7,6 +7,7 @@ from hloc import (
     extract_features,
     pairs_from_retrieval,
     match_features,
+    match_dense,
     localize_sfm,
 )
 from hloc.utils.io import write_poses as original_write_poses
@@ -28,6 +29,20 @@ def safe_write_poses(poses, path, prepend_camera_name=False):
         path,
         prepend_camera_name=prepend_camera_name,
     )
+
+
+def create_merged_image_dir(
+    db_dir: Path,
+    query_dir: Path,
+    output_dir: Path,
+) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for src_dir in (db_dir, query_dir):
+        for src in src_dir.glob("*.png"):
+            dst = output_dir / src.name
+            if dst.exists():
+                raise RuntimeError(f"Duplicate filename detected: {src.name}")
+            dst.symlink_to(src.resolve())
 
 
 hloc_io.write_poses = safe_write_poses
@@ -106,6 +121,25 @@ if __name__ == "__main__":
         matches=query_db_matches_path,
         features_ref=db_local_feats_path,
     )
+
+    # # Perform dense matching
+    # query_db_matches_path = output_dir / "query_db_matches.h5"
+    # query_db_matcher_conf = match_dense.confs["loftr"]
+    # query_db_image_dir = output_dir / "image_dir"
+    # create_merged_image_dir(
+    #     db_dir=Path("datasets/zedx_mini/images/db"),
+    #     query_dir=query_dir,
+    #     output_dir=query_db_image_dir,
+    # )
+    # match_dense.main(
+    #     query_db_matcher_conf,
+    #     pairs=query_db_pairs,
+    #     image_dir=query_db_image_dir,
+    #     export_dir=output_dir,
+    #     features=query_local_feats_path,
+    #     matches=query_db_matches_path,
+    #     features_ref=db_local_feats_path,
+    # )
 
     # Localize queries
     results_path = output_dir / "query_loc.txt"
