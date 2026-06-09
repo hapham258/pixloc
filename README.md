@@ -52,7 +52,7 @@ python postprocess/plot_valid_poses.py $OUT_PIXLOC_DIR/pixloc_zedx_mini.txt $OUT
 ```
 Then use this command to convert to DSO-compatible pose file:
 ```
-python postprocess/convert_to_dso_poses.py outputs/results/pixloc_zedx_mini.txt outputs/results/pixloc_zedx_mini.txt_logs.pkl.txt outputs/results/pixloc_zedx_mini_fmt.txt
+python postprocess/convert_to_dso_poses.py $OUT_PIXLOC_DIR/pixloc_zedx_mini.txt $OUT_PIXLOC_DIR/pixloc_zedx_mini.txt_logs.pkl.txt $OUT_PIXLOC_DIR/pixloc_zedx_mini_fmt.txt
 ```
 
 <p align="center">
