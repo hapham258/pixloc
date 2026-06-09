@@ -8,7 +8,7 @@ from .utils.io import write_pose_results
 # running_set='netvlad_aliked_lightglue'
 # running_set='netvlad_superpoint_lightglue'
 running_set='megaloc_superpoint_lightglue'
-query_set='query'
+query_set='query1'
 
 default_paths = Paths(
     query_images = 'images/' + query_set + '/',
