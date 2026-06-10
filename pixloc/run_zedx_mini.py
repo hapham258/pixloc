@@ -5,9 +5,9 @@ from .localization import RetrievalLocalizer, PoseLocalizer, load_valid_images
 from .utils.data import Paths, create_argparser, parse_paths, parse_conf
 from .utils.io import write_pose_results
 
-# running_set='netvlad_aliked_lightglue'
-# running_set='netvlad_superpoint_lightglue'
 running_set='megaloc_superpoint_lightglue'
+# running_set='megaloc_disk_lightglue'
+# running_set='megaloc_aliked_lightglue'
 # running_set='megaloc_loftr'
 query_set='query1'
 
