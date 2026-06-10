@@ -107,9 +107,6 @@ def merge_local_features(input_files, output_file):
     print(f"Merged {count} local feature entries")
 
 
-import h5py
-
-
 def merge_global_features(input_files, output_file):
     print("Merging global features...")
     count = 0
@@ -169,6 +166,7 @@ def run_bundle_adjustment(model_path: Path):
     ba_options.refine_focal_length = True
     ba_options.refine_principal_point = True
     ba_options.solver_options.minimizer_progress_to_stdout = True
+    ba_options.solver_options.max_num_iterations = 200
     ba_options.refine_extra_params = False
     pycolmap.bundle_adjustment(reconstruction=reconstruction, options=ba_options)
     reconstruction.write(model_path)
