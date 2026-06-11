@@ -3,6 +3,7 @@ import argparse
 import pickle
 from tqdm import tqdm
 import numpy as np
+import yaml
 from hloc import (
     extract_features,
     pairs_from_retrieval,
@@ -31,6 +32,18 @@ def safe_write_poses(poses, path, prepend_camera_name=False):
     )
 
 
+def load_selected_config(config_path: Path):
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)
+    triangulation_cfg = cfg.get("triangulation", {})
+    selected = {
+        "feature_conf": triangulation_cfg.get("feature_conf"),
+        "matcher_conf": triangulation_cfg.get("matcher_conf"),
+        "retrieval_conf": triangulation_cfg.get("retrieval_conf"),
+    }
+    return selected
+
+
 def create_merged_image_dir(
     db_dir: Path,
     query_dir: Path,
@@ -51,7 +64,11 @@ localize_sfm.write_poses = safe_write_poses
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--query_dir", type=Path, required=True)
+    parser.add_argument(
+        "--image_dir", type=Path, default=Path("datasets/zedx_mini/images")
+    )
+    parser.add_argument("--query_name", type=str, required=True)
+    parser.add_argument("--session_name", type=str, required=True)
     parser.add_argument("--fx", type=float, required=True)
     parser.add_argument("--fy", type=float, required=True)
     parser.add_argument("--cx", type=float, required=True)
@@ -61,19 +78,26 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Specify paths
-    db_global_feats_path = Path("outputs/hloc/zedx_mini/db_global_feats.h5")
-    db_local_feats_path = Path("outputs/hloc/zedx_mini/db_local_feats.h5")
-    sfm_dir = Path("outputs/hloc/zedx_mini/sfm_model")
-    query_dir = args.query_dir
-    output_dir = Path("outputs/hloc/zedx_mini")
+    base_dir = Path("outputs/hloc/zedx_mini") / args.session_name
+    db_global_feats_path = base_dir / "db_global_feats.h5"
+    db_local_feats_path = base_dir / "db_local_feats.h5"
+    sfm_dir = base_dir / "sfm_model"
+    db_img_dir = Path(args.image_dir) / "db"
+    query_img_dir = Path(args.image_dir) / args.query_name
+    output_dir = base_dir / args.query_name
+
+    # Load selected configs
+    config_path = base_dir / "config.yaml"
+    config = load_selected_config(config_path)
+    print(config)
 
     # Extract global descriptors for query images
     query_global_feats_path = output_dir / "query_global_feats.h5"
-    query_names = sorted(query_dir.glob("*.png"))
-    retrieval_conf = extract_features.confs["megaloc"]
+    query_names = sorted(query_img_dir.glob("*.png"))
+    retrieval_conf = extract_features.confs[config["retrieval_conf"]]
     extract_features.main(
         retrieval_conf,
-        image_dir=query_dir,
+        image_dir=query_img_dir,
         feature_path=query_global_feats_path,
         image_list=[p.name for p in query_names],
     )
@@ -101,45 +125,46 @@ if __name__ == "__main__":
             )
     print(f"Saved queries with intrinsics to: " f"{queries_with_intrinsics}")
 
-    # Extract local descriptors for query images
+    # Select between sparse and dense matching
     query_local_feats_path = output_dir / "query_local_feats.h5"
-    local_feature_conf = extract_features.confs["superpoint_max"]
-    extract_features.main(
-        local_feature_conf,
-        image_dir=query_dir,
-        feature_path=query_local_feats_path,
-        image_list=[p.name for p in query_names],
-    )
-
-    # Match query and database features
     query_db_matches_path = output_dir / "query_db_matches.h5"
-    query_db_matcher_conf = match_features.confs["superpoint+lightglue"]
-    match_features.main(
-        query_db_matcher_conf,
-        pairs=query_db_pairs,
-        features=query_local_feats_path,
-        matches=query_db_matches_path,
-        features_ref=db_local_feats_path,
-    )
+    if config["matcher_conf"].startswith("loftr"):
+        # Perform dense matching
+        query_db_matcher_conf = match_dense.confs[config["matcher_conf"]]
+        query_db_image_dir = output_dir / "image_dir"
+        create_merged_image_dir(
+            db_dir=db_img_dir,
+            query_dir=query_img_dir,
+            output_dir=query_db_image_dir,
+        )
+        match_dense.main(
+            query_db_matcher_conf,
+            pairs=query_db_pairs,
+            image_dir=query_db_image_dir,
+            export_dir=output_dir,
+            features=query_local_feats_path,
+            matches=query_db_matches_path,
+            features_ref=db_local_feats_path,
+        )
+    else:
+        # Extract local descriptors for query images
+        local_feature_conf = extract_features.confs[config["feature_conf"]]
+        extract_features.main(
+            local_feature_conf,
+            image_dir=query_img_dir,
+            feature_path=query_local_feats_path,
+            image_list=[p.name for p in query_names],
+        )
 
-    # # Perform dense matching
-    # query_db_matches_path = output_dir / "query_db_matches.h5"
-    # query_db_matcher_conf = match_dense.confs["loftr"]
-    # query_db_image_dir = output_dir / "image_dir"
-    # create_merged_image_dir(
-    #     db_dir=Path("datasets/zedx_mini/images/db"),
-    #     query_dir=query_dir,
-    #     output_dir=query_db_image_dir,
-    # )
-    # match_dense.main(
-    #     query_db_matcher_conf,
-    #     pairs=query_db_pairs,
-    #     image_dir=query_db_image_dir,
-    #     export_dir=output_dir,
-    #     features=query_local_feats_path,
-    #     matches=query_db_matches_path,
-    #     features_ref=db_local_feats_path,
-    # )
+        # Match query and database features
+        query_db_matcher_conf = match_features.confs[config["matcher_conf"]]
+        match_features.main(
+            query_db_matcher_conf,
+            pairs=query_db_pairs,
+            features=query_local_feats_path,
+            matches=query_db_matches_path,
+            features_ref=db_local_feats_path,
+        )
 
     # Localize queries
     results_path = output_dir / "query_loc.txt"
