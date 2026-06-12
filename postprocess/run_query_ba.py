@@ -234,17 +234,26 @@ if __name__ == "__main__":
     merged_images = args.output / "merged_images"
     merged_global = args.output / "merged_global.h5"
     merged_local = args.output / "merged_local.h5"
-    merge_images(
-        args.image_dirs,
-        merged_images,
-    )
-    merge_global_features(
-        args.global_features,
-        merged_global,
-    )
-    merge_local_features(
-        args.local_features,
-        merged_local,
+    if merged_images.exists():
+        print(f"Skipping image merge, already exists: {merged_images}")
+    else:
+        merge_images(
+            args.image_dirs,
+            merged_images,
+        )
+    if merged_global.exists():
+        print(f"Skipping global feature merge, already exists: {merged_global}")
+    else:
+        merge_global_features(
+            args.global_features,
+            merged_global,
+        )
+    if merged_local.exists():
+        print(f"Skipping local feature merge, already exists: {merged_local}")
+    else:
+        merge_local_features(
+            args.local_features,
+            merged_local,
     )
     valid_images = load_valid_images_multi(
         args.validity_files,
