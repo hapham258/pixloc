@@ -61,16 +61,21 @@ def merge_images(image_dirs, output_dir):
 
 def load_valid_images_multi(validity_files):
     valid_images = []
+    num_images = 0
     for src_id, validity_file in enumerate(validity_files):
         with open(validity_file) as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-
+                num_images += 1
                 image_name, valid = line.split()
                 if valid == "True":
                     valid_images.append(f"src{src_id}_{image_name}")
+    print(
+        f"Valid images: {len(valid_images)}/{num_images} "
+        f"({100.0 * len(valid_images) / num_images:.1f}%)"
+    )
     return valid_images
 
 
