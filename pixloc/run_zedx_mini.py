@@ -9,6 +9,7 @@ running_set='megaloc_superpoint_lightglue'
 # running_set='megaloc_disk_lightglue'
 # running_set='megaloc_aliked_lightglue'
 # running_set='megaloc_loftr'
+# running_set='megaloc_loma'
 query_set='query1'
 
 default_paths = Paths(
