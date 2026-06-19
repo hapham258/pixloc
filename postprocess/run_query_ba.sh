@@ -28,7 +28,7 @@ for query_dir in "${result_root}"/query[0-9]*; do
     query_name=$(basename "$query_dir")
     if [ "$log_type" = "pixloc" ]; then
         pose_file="${query_dir}/pixloc_zedx_mini.txt"
-        validity_file="${query_dir}/pixloc_zedx_mini.txt_logs.pkl.txt"
+        validity_file="${query_dir}/pixloc_zedx_mini.txt_logs.pkl.txt.sub.txt"
     elif [ "$log_type" = "hloc" ]; then
         pose_file="${hloc_root}/${query_name}/query_loc.txt"
         validity_file="${hloc_root}/${query_name}/query_loc.txt_logs_compact.pkl.txt"
@@ -66,5 +66,6 @@ python postprocess/run_query_ba.py \
     --image_dirs "${image_dirs[@]}" \
     --local_features "${local_features[@]}" \
     --global_features "${global_features[@]}" \
+    --config_file "${hloc_root}/config.yaml" \
     --output "${output_dir}" \
     --fx "${fx}" --fy "${fy}" --cx "${cx}" --cy "${cy}" --w "${w}" --h "${h}"

@@ -2,7 +2,7 @@ import argparse
 import os
 import h5py
 from pathlib import Path
-
+import yaml
 import numpy as np
 import pycolmap
 from hloc import (
@@ -52,7 +52,7 @@ def merge_images(image_dirs, output_dir):
     for src_id, image_dir in enumerate(image_dirs):
         print(f"  source {src_id}: {image_dir}")
         for image_path in image_dir.iterdir():
-            dst = output_dir / f"src{src_id}_{image_path.name}"
+            dst = output_dir / image_path.name
             if not dst.exists():
                 os.symlink(image_path.resolve(), dst)
                 count += 1
@@ -62,7 +62,7 @@ def merge_images(image_dirs, output_dir):
 def load_valid_images_multi(validity_files):
     valid_images = []
     num_images = 0
-    for src_id, validity_file in enumerate(validity_files):
+    for _, validity_file in enumerate(validity_files):
         with open(validity_file) as f:
             for line in f:
                 line = line.strip()
@@ -71,7 +71,7 @@ def load_valid_images_multi(validity_files):
                 num_images += 1
                 image_name, valid = line.split()
                 if valid == "True":
-                    valid_images.append(f"src{src_id}_{image_name}")
+                    valid_images.append(image_name)
     print(
         f"Valid images: {len(valid_images)}/{num_images} "
         f"({100.0 * len(valid_images) / num_images:.1f}%)"
@@ -81,7 +81,7 @@ def load_valid_images_multi(validity_files):
 
 def load_pose_files_multi(pose_files):
     poses = {}
-    for src_id, pose_file in enumerate(pose_files):
+    for _, pose_file in enumerate(pose_files):
         with open(pose_file) as f:
             for line in f:
                 line = line.strip()
@@ -89,7 +89,7 @@ def load_pose_files_multi(pose_files):
                     continue
 
                 tokens = line.split()
-                image_name = f"src{src_id}_{tokens[0]}"
+                image_name = tokens[0]
                 qw, qx, qy, qz = map(float, tokens[1:5])
                 tx, ty, tz = map(float, tokens[5:8])
                 poses[image_name] = {
@@ -99,30 +99,50 @@ def load_pose_files_multi(pose_files):
     return poses
 
 
-def merge_local_features(input_files, output_file):
+def load_selected_config(config_path: Path):
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)
+    triangulation_cfg = cfg.get("triangulation", {})
+    selected = {
+        "feature_conf": triangulation_cfg.get("feature_conf"),
+        "matcher_conf": triangulation_cfg.get("matcher_conf"),
+        "retrieval_conf": triangulation_cfg.get("retrieval_conf"),
+    }
+    return selected
+
+
+def merge_local_features(input_files, output_file, valid_images):
     print("Merging local features...")
     count = 0
+    skipped = 0
     with h5py.File(output_file, "w") as fout:
         for src_id, input_file in enumerate(input_files):
             print(f"  source {src_id}: {input_file}")
             with h5py.File(input_file, "r") as fin:
                 for image_name in fin.keys():
-                    fout.copy(fin[image_name], f"src{src_id}_{image_name}")
+                    if image_name not in valid_images:
+                        skipped += 1
+                        continue
+                    fout.copy(fin[image_name], image_name)
                     count += 1
-    print(f"Merged {count} local feature entries")
+    print(f"Merged {count} local feature entries " f"(skipped {skipped})")
 
 
-def merge_global_features(input_files, output_file):
+def merge_global_features(input_files, output_file, valid_images):
     print("Merging global features...")
     count = 0
+    skipped = 0
     with h5py.File(output_file, "w") as fout:
         for src_id, input_file in enumerate(input_files):
             print(f"  source {src_id}: {input_file}")
             with h5py.File(input_file, "r") as fin:
                 for image_name in fin.keys():
-                    fout.copy(fin[image_name], f"src{src_id}_{image_name}")
+                    if image_name not in valid_images:
+                        skipped += 1
+                        continue
+                    fout.copy(fin[image_name], image_name)
                     count += 1
-    print(f"Merged {count} global feature entries")
+    print(f"Merged {count} global feature entries " f"(skipped {skipped})")
 
 
 def create_reference_model(
@@ -210,6 +230,7 @@ if __name__ == "__main__":
         type=Path,
         required=True,
     )
+    parser.add_argument("--config_file", type=Path, required=True)
     parser.add_argument(
         "--output",
         type=Path,
@@ -222,6 +243,11 @@ if __name__ == "__main__":
     parser.add_argument("--w", type=int, required=True)
     parser.add_argument("--h", type=int, required=True)
     args = parser.parse_args()
+
+    #
+    print("Mapping config:")
+    config = load_selected_config(args.config_file)
+    print(config)
 
     #
     args.output.mkdir(parents=True, exist_ok=True)
@@ -241,26 +267,18 @@ if __name__ == "__main__":
             args.image_dirs,
             merged_images,
         )
+
+    #
+    valid_images = load_valid_images_multi(args.validity_files)
+    poses = load_pose_files_multi(args.pose_files)
     if merged_global.exists():
         print(f"Skipping global feature merge, already exists: {merged_global}")
     else:
-        merge_global_features(
-            args.global_features,
-            merged_global,
-        )
+        merge_global_features(args.global_features, merged_global, valid_images)
     if merged_local.exists():
         print(f"Skipping local feature merge, already exists: {merged_local}")
     else:
-        merge_local_features(
-            args.local_features,
-            merged_local,
-    )
-    valid_images = load_valid_images_multi(
-        args.validity_files,
-    )
-    poses = load_pose_files_multi(
-        args.pose_files,
-    )
+        merge_local_features(args.local_features, merged_local, valid_images)
 
     #
     print("Generating pairs from retrieval ...")
@@ -282,7 +300,7 @@ if __name__ == "__main__":
 
     #
     print("Matching image pairs ...")
-    matcher_conf = match_features.confs["superpoint+lightglue"]
+    matcher_conf = match_features.confs[config["matcher_conf"]]
     match_features.main(
         matcher_conf,
         pairs=pairs_file,
