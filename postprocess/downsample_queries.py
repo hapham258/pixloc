@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation as scipyRot
 from sklearn.cluster import DBSCAN
 import open3d as o3d
 
@@ -59,21 +59,23 @@ def filter_largest_cluster(poses, eps=0.3, min_samples=10):
     valid_labels = labels[labels >= 0]
     if len(valid_labels) == 0:
         print("DBSCAN found no clusters.")
-        return poses
-    unique, counts = np.unique(
-        valid_labels,
-        return_counts=True,
-    )
+        return poses, []
+    unique, counts = np.unique(valid_labels, return_counts=True)
     main_label = unique[np.argmax(counts)]
-    keep_mask = labels == main_label
-    filtered = [p for p, keep in zip(poses, keep_mask) if keep]
-    print(f"DBSCAN: kept {len(filtered)} / {len(poses)} poses " f"in largest cluster")
-    return filtered
+    main_poses = []
+    rejected_poses = []
+    for p, label in zip(poses, labels):
+        if label == main_label:
+            main_poses.append(p)
+        else:
+            rejected_poses.append(p)
+    print(f"DBSCAN: kept {len(main_poses)} / {len(poses)} poses " f"in largest cluster")
+    return main_poses, rejected_poses
 
 
 def quat_to_rotmat(q):
     qw, qx, qy, qz = q
-    return R.from_quat([qx, qy, qz, qw]).as_matrix()
+    return scipyRot.from_quat([qx, qy, qz, qw]).as_matrix()
 
 
 def camera_center(q, t):
@@ -83,7 +85,7 @@ def camera_center(q, t):
 
 def pose_to_world_transform(q, t):
     qw, qx, qy, qz = q
-    Rcw = R.from_quat([qx, qy, qz, qw]).as_matrix()
+    Rcw = scipyRot.from_quat([qx, qy, qz, qw]).as_matrix()
     Twc = np.eye(4)
     Twc[:3, :3] = Rcw.T
     Twc[:3, 3] = -Rcw.T @ t
@@ -134,6 +136,8 @@ def create_frustums(poses, indices, scale, color):
         all_colors.extend([color] * len(lines))
         offset += 5
     ls = o3d.geometry.LineSet()
+    if len(all_points) == 0:
+        return ls
     ls.points = o3d.utility.Vector3dVector(np.vstack(all_points))
     ls.lines = o3d.utility.Vector2iVector(np.vstack(all_lines))
     ls.colors = o3d.utility.Vector3dVector(np.asarray(all_colors))
@@ -141,8 +145,8 @@ def create_frustums(poses, indices, scale, color):
 
 
 def rotation_difference_deg(q1, q2):
-    r1 = R.from_quat([q1[1], q1[2], q1[3], q1[0]])
-    r2 = R.from_quat([q2[1], q2[2], q2[3], q2[0]])
+    r1 = scipyRot.from_quat([q1[1], q1[2], q1[3], q1[0]])
+    r2 = scipyRot.from_quat([q2[1], q2[2], q2[3], q2[0]])
     rel = r2 * r1.inv()
     return np.degrees(rel.magnitude())
 
@@ -180,28 +184,30 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #
-    valid_map = load_validity(args.validity_file)
     all_poses = load_poses(args.pose_file, None)
-    poses = load_poses(args.pose_file, valid_map)
+    valid_map = load_validity(args.validity_file)
+    valid_poses = load_poses(args.pose_file, valid_map)
     print(
-        f"Validity filter: {len(poses)} / {len(all_poses)} poses "
-        f"({100.0 * len(poses) / len(all_poses):.1f}%)"
+        f"Validity filter: {len(valid_poses)} / {len(all_poses)} poses "
+        f"({100.0 * len(valid_poses) / len(all_poses):.1f}%)"
     )
-    poses = filter_largest_cluster(
-        poses,
+
+    #
+    inlier_poses, outlier_poses = filter_largest_cluster(
+        valid_poses,
         eps=args.dbscan_eps,
         min_samples=args.dbscan_min_samples,
     )
-    if len(poses) == 0:
-        raise RuntimeError("No valid poses found.")
+
+    #
     keep_indices = select_keyframes(
-        poses,
+        inlier_poses,
         trans_thresh=args.trans_thresh,
         rot_thresh_deg=args.rot_thresh,
     )
 
     #
-    selected_names = {poses[i]["name"] for i in keep_indices}
+    selected_names = {inlier_poses[i]["name"] for i in keep_indices}
     output_file = args.validity_file + ".sub.txt"
     with open(output_file, "w") as f:
         f.write("#image_file valid\n")
@@ -209,27 +215,41 @@ if __name__ == "__main__":
             valid = pose["name"] in selected_names
             f.write(f"{pose['name']} {valid}\n")
     print(
-        f"Selected {len(keep_indices)} / {len(poses)} frames "
-        f"({100.0 * len(keep_indices) / len(poses):.1f}%)"
+        f"Selected {len(keep_indices)} / {len(inlier_poses)} frames "
+        f"({100.0 * len(keep_indices) / len(inlier_poses):.1f}%)"
     )
     print(f"Saved to {output_file}")
 
     #
     all_frustums = create_frustums(
-        poses,
-        range(len(poses)),
+        all_poses,
+        range(len(all_poses)),
         scale=0.02,
-        color=(0.6, 0.6, 0.6),
+        color=(0.2, 0.2, 0.2),
+    )
+    valid_frustums = create_frustums(
+        valid_poses,
+        range(len(valid_poses)),
+        scale=0.02,
+        color=(0.0, 0.0, 0.7),
+    )
+    outlier_frustums = create_frustums(
+        outlier_poses,
+        range(len(outlier_poses)),
+        scale=0.02,
+        color=(1.0, 0.0, 0.0),
     )
     selected_frustums = create_frustums(
-        poses,
+        inlier_poses,
         keep_indices,
         scale=0.04,
         color=(0.0, 1.0, 0.0),
     )
     vis = o3d.visualization.Visualizer()
-    vis.create_window(window_name="Gray=all poses, Green=selected poses")
+    vis.create_window(window_name="All poses [Gray] -> Valid poses [Blue] -> Outlier poses [Red], Selected poses [Green]")
     vis.add_geometry(all_frustums)
+    vis.add_geometry(valid_frustums)
+    vis.add_geometry(outlier_frustums)
     vis.add_geometry(selected_frustums)
     opt = vis.get_render_option()
     opt.background_color = np.array([0.0, 0.0, 0.0])
