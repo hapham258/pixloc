@@ -75,6 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--cy", type=float, required=True)
     parser.add_argument("--w", type=int, required=True)
     parser.add_argument("--h", type=int, required=True)
+    parser.add_argument("--frame_stride", type=int, default=1)
     args = parser.parse_args()
 
     # Specify paths
@@ -94,6 +95,9 @@ if __name__ == "__main__":
     # Extract global descriptors for query images
     query_global_feats_path = output_dir / "query_global_feats.h5"
     query_names = sorted(query_img_dir.glob("*.png"))
+    if args.frame_stride > 1:
+        query_names = query_names[:: args.frame_stride]
+    print(f"Using {len(query_names)} query images " f"(stride={args.frame_stride})")
     retrieval_conf = extract_features.confs[config["retrieval_conf"]]
     extract_features.main(
         retrieval_conf,
@@ -107,7 +111,7 @@ if __name__ == "__main__":
     pairs_from_retrieval.main(
         descriptors=query_global_feats_path,
         output=query_db_pairs,
-        num_matched=20,
+        num_matched=5,
         db_descriptors=db_global_feats_path,
     )
     print(f"Saved pairs to: {query_db_pairs}")

@@ -1,30 +1,12 @@
 import pickle
+from pprint import pformat
 
 from . import set_logging_debug
 from .localization import RetrievalLocalizer, PoseLocalizer, load_valid_images
 from .utils.data import Paths, create_argparser, parse_paths, parse_conf
 from .utils.io import write_pose_results
 
-running_set='megaloc_superpoint_lightglue'
-# running_set='megaloc_disk_lightglue'
-# running_set='megaloc_aliked_lightglue'
-# running_set='megaloc_loftr'
-# running_set='megaloc_loma'
-query_set='query1'
-
-default_paths = Paths(
-    query_images = 'images/' + query_set + '/',
-    reference_images = 'images/db/',
-    reference_sfm = running_set + '/sfm_model/',
-    query_list = running_set + '/' + query_set + '/queries_with_intrinsics.txt',
-    retrieval_pairs = running_set + '/' + query_set + '/query_db_pairs.txt',
-    results = running_set + '/' + query_set + '/pixloc_zedx_mini.txt',
-)
-
-pose_priors = running_set + '/' + query_set + '/query_loc.txt_logs.pkl'
-
 experiment = 'pixloc_megadepth'
-
 default_confs = {
     'from_retrieval': {
         'experiment': experiment,
@@ -65,8 +47,21 @@ def main():
     parser = create_argparser('zedx_mini')
     args = parser.parse_args()
     set_logging_debug(args.verbose)
+
+    default_paths = Paths(
+        query_images = 'images/' + args.query_set + '/',
+        reference_images = 'images/db/',
+        reference_sfm = args.running_set + '/sfm_model/',
+        query_list = args.running_set + '/' + args.query_set + '/queries_with_intrinsics.txt',
+        retrieval_pairs = args.running_set + '/' + args.query_set + '/query_db_pairs.txt',
+        results = args.running_set + '/' + args.query_set + '/pixloc_zedx_mini.txt',
+    )
+    print(f'default paths:\n{pformat(default_paths.asdict())}')
+    pose_priors = args.running_set + '/' + args.query_set + '/query_loc.txt_logs.pkl'
+    print(f'pose_priors: {pose_priors}')
     paths = parse_paths(args, default_paths)
     conf = parse_conf(args, default_confs)
+
 
     if args.from_poses:
         localizer = PoseLocalizer(paths, conf)

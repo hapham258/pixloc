@@ -72,6 +72,8 @@ def create_argparser(dataset: str) -> argparse.ArgumentParser:
     parser.add_argument('--retrieval', type=Path)
     parser.add_argument('--global_descriptors', type=Path)
     parser.add_argument('--hloc_logs', type=Path)
+    parser.add_argument('--running_set', type=str, default='megaloc_superpoint_lightglue')
+    parser.add_argument('--query_set', type=str, default='query1')
 
     parser.add_argument('--dataset', type=Path,
                         default=settings.DATA_PATH / dataset)
